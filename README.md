@@ -144,11 +144,12 @@ python -m bot.main
 📊 Мониторинг
 
 После запуска доступны:
-Сервис	URL	Логин/Пароль
-FastAPI	http://localhost:8000	-
-Swagger Docs	http://localhost:8000/docs	-
-Prometheus	http://localhost:9090	-
-Grafana	http://localhost:3000	admin/admin
+Сервис	               URL	                       Логин/Пароль
+FastAPI	               http://localhost:8000	            -
+Swagger Docs	       http://localhost:8000/docs           -
+Prometheus	       http://localhost:9090	            -
+Grafana	               http://localhost:3000	       admin/admin
+
 📈 Метрики
 
     📊 Количество запросов к API
@@ -164,15 +165,17 @@ Grafana	http://localhost:3000	admin/admin
     💾 Использование Redis и PostgreSQL
 
 🔧 Парсер цен
+
 Поддерживаемые магазины
-Магазин	Статус	Метод парсинга
-Wildberries	⚠️	API / требуется прокси
-Ozon	⚠️	JSON-LD / требуется прокси
-Яндекс.Маркет	✅	JSON-LD
-Citilink	✅	HTML + JSON
-М.Видео	✅	JSON
-DNS	✅	HTML + JSON
-Любой другой	✅	Универсальный парсер
+
+Магазин	           Статус	     Метод парсинга
+Wildberries	    ⚠️	             API / требуется прокси
+Ozon	            ⚠️	             JSON-LD / требуется прокси
+Яндекс.Маркет	    ✅	             JSON-LD
+Citilink	    ✅	             HTML + JSON
+М.Видео	            ✅	             JSON
+DNS	            ✅	             HTML + JSON
+Любой другой	    ✅	             Универсальный парсер
 
     ⚠️ Важно: Wildberries и Ozon активно защищаются от автоматических запросов. Для production рекомендуется:
 
@@ -181,8 +184,11 @@ DNS	✅	HTML + JSON
         Подключить сервисы обхода блокировок (ScrapingBee, ScrapingAnt)
 
         Использовать официальные API магазинов
+        
+        
        
     📁 Структура проекта
+    
 discount-tracker/
 ├── 📁 bot/                        # Telegram бот
 │   ├── 📄 __init__.py
@@ -212,7 +218,8 @@ discount-tracker/
 └── 📄 README.md                   # Документация
 
 📈 Roadmap
-✅ Выполнено
+
+    ✅ Выполнено
 
     Telegram бот с базовыми командами
 
