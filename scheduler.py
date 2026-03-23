@@ -4,12 +4,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
 
 from shared.models import Product, PriceHistory
 from shared.price_parser import PriceParser
-from shared.database import AsyncSessionLocal, engine
+from shared.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +39,6 @@ class PriceScheduler:
         logger.info("🔍 Начинаем проверку цен...")
         
         async with AsyncSessionLocal() as session:
-            # Получаем все активные товары
             result = await session.execute(
                 select(Product).where(Product.is_active == True)
             )
@@ -63,14 +60,12 @@ class PriceScheduler:
                     )
                     session.add(history)
                     
-                    # Если цена изменилась
                     if new_price != product.current_price:
                         old_price = product.current_price
                         product.current_price = new_price
                         product.last_checked = datetime.utcnow()
                         logger.info(f"Товар {product.id}: цена изменилась {old_price} -> {new_price}")
                         
-                        # Проверяем, достигнута ли целевая цена
                         if new_price <= product.target_price:
                             await self.notify_price_drop(
                                 user_id=product.user.telegram_id,

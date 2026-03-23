@@ -9,9 +9,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from datetime import datetime
 
+# Загружаем переменные окружения
+load_dotenv()
 
 # Настройка логирования
 logging.basicConfig(
@@ -30,12 +33,12 @@ from shared.database import AsyncSessionLocal, engine, Base
 from shared.config import settings
 from scheduler import PriceScheduler
 
-# Настройки из переменных окружения
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+# Настройки
+BOT_TOKEN = settings.BOT_TOKEN
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN not found in .env file")
 
-# Инициализация бота и диспетчера
+# Инициализация бота
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
@@ -48,7 +51,7 @@ class AddProduct(StatesGroup):
     waiting_for_target_price = State()
 
 
-# ========== ФУНКЦИИ ДЛЯ КЛАВИАТУР ==========
+# ========== КЛАВИАТУРЫ ==========
 
 def get_main_keyboard():
     """Главное меню с inline-кнопками"""
@@ -91,7 +94,6 @@ def get_back_keyboard():
 async def cmd_start(message: Message):
     """Обработчик команды /start"""
     async with AsyncSessionLocal() as session:
-        # Создаём или находим пользователя в БД
         result = await session.execute(
             select(User).where(User.telegram_id == message.from_user.id)
         )
@@ -105,20 +107,13 @@ async def cmd_start(message: Message):
             )
             session.add(user)
             await session.commit()
-            logger.info(f"Новый пользователь: @{message.from_user.username} (ID: {message.from_user.id})")
+            logger.info(f"Новый пользователь: @{message.from_user.username}")
 
-    welcome_text = (
+    await message.answer(
         "🛍️ **Добро пожаловать в бот отслеживания скидок!**\n\n"
-        "Я помогу вам следить за ценами на любимые товары. "
-        "Как только цена упадёт ниже желаемой — я сразу сообщу!\n\n"
-        "**Основные команды:**\n"
         "➕ Добавить товар — начать отслеживание\n"
         "📋 Мои товары — список отслеживаемых товаров\n"
-        "❓ Помощь — показать все команды"
-    )
-    
-    await message.answer(
-        welcome_text,
+        "❓ Помощь — показать все команды",
         reply_markup=get_main_keyboard(),
         parse_mode="Markdown"
     )
@@ -129,14 +124,13 @@ async def cmd_help(message: Message):
     """Обработчик команды /help"""
     help_text = (
         "📚 **Справка по командам:**\n\n"
-        "**/start** — запустить бота\n"
-        "**/add** — добавить товар (пример: /add https://... 1000)\n"
-        "**/list** — список ваших товаров\n"
-        "**/remove <ID>** — удалить товар по ID\n"
-        "**/check <ID>** — проверить цену сейчас\n"
-        "**/stats** — статистика\n"
-        "**/help** — эта справка\n\n"
-        "Также вы можете использовать удобные кнопки в меню! 👆"
+        "/start — запустить бота\n"
+        "/add <URL> [цена] — добавить товар\n"
+        "/list — список ваших товаров\n"
+        "/remove <ID> — удалить товар\n"
+        "/check <ID> — проверить цену сейчас\n"
+        "/stats — статистика\n"
+        "/help — эта справка"
     )
     await message.answer(help_text, parse_mode="Markdown")
 
@@ -145,17 +139,27 @@ async def cmd_help(message: Message):
 async def cmd_stats(message: Message):
     """Обработчик команды /stats"""
     async with AsyncSessionLocal() as session:
-        total_users = await session.execute(select(User))
-        total_products = await session.execute(select(Product))
-        user_products = await session.execute(
-            select(Product).join(User).where(User.telegram_id == message.from_user.id)
+        # Общая статистика
+        total_users_result = await session.execute(select(func.count()).select_from(User))
+        total_users = total_users_result.scalar()
+        
+        total_products_result = await session.execute(select(func.count()).select_from(Product))
+        total_products = total_products_result.scalar()
+        
+        # Товары текущего пользователя
+        user_products_result = await session.execute(
+            select(func.count())
+            .select_from(Product)
+            .join(User)
+            .where(User.telegram_id == message.from_user.id)
         )
+        user_products = user_products_result.scalar()
         
         stats_text = (
             "📊 **Статистика бота:**\n\n"
-            f"👥 Всего пользователей: {len(total_users.all())}\n"
-            f"📦 Всего товаров: {len(total_products.all())}\n"
-            f"📋 Ваших товаров: {len(user_products.all())}\n\n"
+            f"👥 Всего пользователей: {total_users}\n"
+            f"📦 Всего товаров: {total_products}\n"
+            f"📋 Ваших товаров: {user_products}\n\n"
             f"🕒 Проверка цен: каждый час"
         )
         await message.answer(stats_text, parse_mode="Markdown")
@@ -219,7 +223,6 @@ async def process_target_price(message: Message, state: FSMContext):
 async def add_product_to_db(message: Message, url: str, target_price: float):
     """Добавляет товар в БД"""
     async with AsyncSessionLocal() as session:
-        # Находим пользователя
         result = await session.execute(
             select(User).where(User.telegram_id == message.from_user.id)
         )
@@ -228,7 +231,6 @@ async def add_product_to_db(message: Message, url: str, target_price: float):
             await message.answer("❌ Сначала используйте /start")
             return
 
-        # Создаём товар
         product = Product(
             url=url,
             current_price=target_price,
@@ -239,7 +241,7 @@ async def add_product_to_db(message: Message, url: str, target_price: float):
         await session.commit()
         await session.refresh(product)
 
-        # Пытаемся сразу получить актуальную цену
+        # Попытка получить актуальную цену
         from shared.price_parser import PriceParser
         actual_price = await PriceParser.get_price(url)
         if actual_price:
@@ -255,7 +257,6 @@ async def add_product_to_db(message: Message, url: str, target_price: float):
             f"🎯 Целевая цена: {target_price:,.0f} ₽{price_info}",
             parse_mode="Markdown"
         )
-        logger.info(f"Пользователь {message.from_user.id} добавил товар {product.id}")
 
 
 @dp.message(Command("list"))
@@ -263,7 +264,9 @@ async def cmd_list(message: Message):
     """Показывает список отслеживаемых товаров"""
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            select(User).where(User.telegram_id == message.from_user.id)
+            select(User)
+            .where(User.telegram_id == message.from_user.id)
+            .options(selectinload(User.products))
         )
         user = result.scalar_one_or_none()
         
@@ -278,7 +281,6 @@ async def cmd_list(message: Message):
         
         for product in user.products:
             short_url = product.url[:50] + "..." if len(product.url) > 50 else product.url
-            
             product_text = (
                 f"🆔 **ID:** {product.id}\n"
                 f"🔗 **Ссылка:** `{short_url}`\n"
@@ -286,7 +288,6 @@ async def cmd_list(message: Message):
                 f"🎯 **Целевая цена:** {product.target_price:,.0f} ₽\n"
                 f"📅 **Добавлено:** {product.created_at.strftime('%d.%m.%Y %H:%M')}"
             )
-            
             await message.answer(
                 product_text,
                 reply_markup=get_product_actions_keyboard(product.id),
@@ -306,10 +307,10 @@ async def cmd_remove(message: Message):
         product_id = int(args[0])
         async with AsyncSessionLocal() as session:
             # Находим пользователя
-            result = await session.execute(
+            user_result = await session.execute(
                 select(User).where(User.telegram_id == message.from_user.id)
             )
-            user = result.scalar_one_or_none()
+            user = user_result.scalar_one_or_none()
             if not user:
                 await message.answer("❌ Пользователь не найден.")
                 return
@@ -327,7 +328,6 @@ async def cmd_remove(message: Message):
                 await session.delete(product)
                 await session.commit()
                 await message.answer(f"✅ Товар с ID {product_id} удалён.")
-                logger.info(f"Пользователь {message.from_user.id} удалил товар {product_id}")
             else:
                 await message.answer("❌ Товар с таким ID не найден или не принадлежит вам.")
     except ValueError:
@@ -372,7 +372,6 @@ async def cmd_check(message: Message):
                 )
             else:
                 await message.answer("❌ Не удалось получить цену. Попробуйте позже.")
-                
     except ValueError:
         await message.answer("❌ ID должен быть числом!")
 
@@ -381,6 +380,7 @@ async def cmd_check(message: Message):
 
 @dp.callback_query(lambda c: c.data == "add_product")
 async def callback_add_product(callback: CallbackQuery, state: FSMContext):
+    """Обработчик кнопки добавления товара"""
     await state.set_state(AddProduct.waiting_for_url)
     await callback.message.edit_text(
         "🔗 Отправьте мне ссылку на товар:",
@@ -391,9 +391,12 @@ async def callback_add_product(callback: CallbackQuery, state: FSMContext):
 
 @dp.callback_query(lambda c: c.data == "list_products")
 async def callback_list_products(callback: CallbackQuery):
+    """Обработчик кнопки списка товаров"""
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            select(User).where(User.telegram_id == callback.from_user.id)
+            select(User)
+            .where(User.telegram_id == callback.from_user.id)
+            .options(selectinload(User.products))
         )
         user = result.scalar_one_or_none()
         
@@ -412,7 +415,6 @@ async def callback_list_products(callback: CallbackQuery):
         
         for product in user.products[:5]:
             short_url = product.url[:30] + "..." if len(product.url) > 30 else product.url
-            
             text = (
                 f"🆔 **ID:** {product.id}\n"
                 f"🔗 `{short_url}`\n"
@@ -433,18 +435,21 @@ async def callback_list_products(callback: CallbackQuery):
 
 @dp.callback_query(lambda c: c.data == "help")
 async def callback_help(callback: CallbackQuery):
+    """Обработчик кнопки помощи"""
     await cmd_help(callback.message)
     await callback.answer()
 
 
 @dp.callback_query(lambda c: c.data == "stats")
 async def callback_stats(callback: CallbackQuery):
+    """Обработчик кнопки статистики"""
     await cmd_stats(callback.message)
     await callback.answer()
 
 
 @dp.callback_query(lambda c: c.data == "back_to_main")
 async def callback_back_to_main(callback: CallbackQuery, state: FSMContext):
+    """Возврат в главное меню"""
     await state.clear()
     await callback.message.edit_text(
         "🛍️ **Главное меню**",
@@ -456,6 +461,7 @@ async def callback_back_to_main(callback: CallbackQuery, state: FSMContext):
 
 @dp.callback_query(lambda c: c.data.startswith("check_"))
 async def callback_check_product(callback: CallbackQuery):
+    """Проверка цены по кнопке"""
     product_id = int(callback.data.split("_")[1])
     
     async with AsyncSessionLocal() as session:
@@ -491,71 +497,83 @@ async def callback_check_product(callback: CallbackQuery):
 
 @dp.callback_query(lambda c: c.data.startswith("delete_"))
 async def callback_delete_product(callback: CallbackQuery):
+    """Удаление товара по кнопке"""
     product_id = int(callback.data.split("_")[1])
     
     async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == callback.from_user.id)
-        )
-        user = result.scalar_one_or_none()
-        if not user:
-            await callback.message.answer("❌ Пользователь не найден.")
-            await callback.answer()
-            return
-
-        product_result = await session.execute(
-            select(Product).where(
-                Product.id == product_id,
-                Product.user_id == user.id
-            )
-        )
-        product = product_result.scalar_one_or_none()
-
-        if product:
-            await session.delete(product)
-            await session.commit()
-            await callback.message.answer(f"✅ Товар с ID {product_id} удалён.")
-            logger.info(f"Пользователь {callback.from_user.id} удалил товар {product_id}")
-        else:
-            await callback.message.answer("❌ Товар с таким ID не найден или не принадлежит вам.")
-    await callback.answer()
-
-
-@dp.callback_query(lambda c: c.data.startswith("history_"))
-async def callback_history_product(callback: CallbackQuery):
-    product_id = int(callback.data.split("_")[1])
-    
-    async with AsyncSessionLocal() as session:
+        # Находим товар
         product_result = await session.execute(
             select(Product).where(Product.id == product_id)
         )
         product = product_result.scalar_one_or_none()
+        
         if not product:
             await callback.message.answer("❌ Товар не найден")
             await callback.answer()
             return
         
-        history_result = await session.execute(
-            select(PriceHistory)
-            .where(PriceHistory.product_id == product_id)
-            .order_by(PriceHistory.created_at.desc())
-            .limit(5)
+        # Проверяем, что товар принадлежит пользователю
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == callback.from_user.id)
         )
-        history = history_result.scalars().all()
+        user = user_result.scalar_one_or_none()
+        
+        if not user or product.user_id != user.id:
+            await callback.message.answer("❌ Товар не принадлежит вам")
+            await callback.answer()
+            return
+
+        await session.delete(product)
+        await session.commit()
+        await callback.message.answer(f"✅ Товар с ID {product_id} удалён.")
+    await callback.answer()
+
+
+@dp.callback_query(lambda c: c.data.startswith("history_"))
+async def callback_history_product(callback: CallbackQuery):
+    """Показывает историю цен товара"""
+    product_id = int(callback.data.split("_")[1])
+    
+    async with AsyncSessionLocal() as session:
+        # Загружаем товар с историей цен
+        result = await session.execute(
+            select(Product)
+            .where(Product.id == product_id)
+            .options(selectinload(Product.price_history))
+        )
+        product = result.scalar_one_or_none()
+        
+        if not product:
+            await callback.message.answer("❌ Товар не найден")
+            await callback.answer()
+            return
+        
+        # Проверяем, что товар принадлежит пользователю
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == callback.from_user.id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if not user or product.user_id != user.id:
+            await callback.message.answer("❌ Товар не принадлежит вам")
+            await callback.answer()
+            return
+        
+        history = product.price_history[-5:] if product.price_history else []
         
         if not history:
             await callback.message.answer("📊 История цен пока пуста")
         else:
             history_text = f"📊 **История цен товара #{product_id}:**\n\n"
-            for record in history:
+            for record in reversed(history):
                 history_text += f"• {record.created_at.strftime('%d.%m.%Y %H:%M')}: {record.price:,.0f} ₽\n"
-            
             await callback.message.answer(history_text, parse_mode="Markdown")
     await callback.answer()
 
 
 @dp.callback_query(lambda c: c.data.startswith("edit_"))
 async def callback_edit_product(callback: CallbackQuery, state: FSMContext):
+    """Редактирование целевой цены товара"""
     product_id = int(callback.data.split("_")[1])
     
     async with AsyncSessionLocal() as session:
@@ -568,8 +586,18 @@ async def callback_edit_product(callback: CallbackQuery, state: FSMContext):
             await callback.answer()
             return
         
-        await state.update_data(edit_product_id=product_id)
+        # Проверяем, что товар принадлежит пользователю
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == callback.from_user.id)
+        )
+        user = user_result.scalar_one_or_none()
         
+        if not user or product.user_id != user.id:
+            await callback.message.answer("❌ Товар не принадлежит вам")
+            await callback.answer()
+            return
+        
+        await state.update_data(edit_product_id=product_id)
         await callback.message.answer(
             f"💰 Текущая целевая цена: {product.target_price:,.0f} ₽\n"
             "Введите новую целевую цену:",
@@ -578,9 +606,9 @@ async def callback_edit_product(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-# Обработчик для ввода новой целевой цены при редактировании
 @dp.message(lambda message: message.text and message.text.replace('.', '').replace(',', '').isdigit())
 async def process_edit_price(message: Message, state: FSMContext):
+    """Обработка ввода новой цены при редактировании"""
     data = await state.get_data()
     product_id = data.get('edit_product_id')
     
@@ -609,30 +637,27 @@ async def process_edit_price(message: Message, state: FSMContext):
                 logger.info(f"Пользователь {message.from_user.id} изменил цену товара {product_id}")
             else:
                 await message.answer("❌ Товар не найден")
-            
     except ValueError:
         await message.answer("❌ Пожалуйста, введите корректное число")
     
     await state.clear()
 
 
-# ========== ОСНОВНАЯ ФУНКЦИЯ ==========
+# ========== ЗАПУСК ==========
 
 async def main():
     """Основная функция запуска бота"""
     global scheduler
     
-    # Создаём таблицы, если их нет (асинхронно)
+    # Создаём таблицы (асинхронно)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
     logger.info("🚀 Бот запускается...")
     
-    # Инициализируем и запускаем планировщик
     scheduler = PriceScheduler(settings.DATABASE_URL, bot)
     scheduler.start()
     
-    # Запускаем бота
     await dp.start_polling(bot)
 
 

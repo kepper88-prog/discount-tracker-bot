@@ -15,3 +15,10 @@ venv312/
 __pycache__/
 *.pyc
 bot.log
+.env
+bot.log
+*.db
+.env~
+*.swp
+*~
+*.bak

@@ -1,0 +1,21 @@
+2026-03-23 23:07:03,882 - asyncio - DEBUG - Using selector: EpollSelector
+2026-03-23 23:07:03,883 - __main__ - INFO - 🔍 Парсинг URL: https://www.wildberries.ru/catalog/218675291/detail.aspx
+2026-03-23 23:07:03,883 - __main__ - INFO - Артикул Wildberries: 218675291
+2026-03-23 23:07:03,883 - __main__ - INFO - Пробуем API: https://card.wb.ru/cards/v1/detail?appType=1&curr=rub&dest=-1257786&spp=30&nm=218675291
+2026-03-23 23:07:03,885 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): card.wb.ru:443
+2026-03-23 23:07:04,150 - urllib3.connectionpool - DEBUG - https://card.wb.ru:443 "GET /cards/v1/detail?appType=1&curr=rub&dest=-1257786&spp=30&nm=218675291 HTTP/1.1" 404 None
+2026-03-23 23:07:04,151 - __main__ - INFO - API статус: 404
+2026-03-23 23:07:04,151 - __main__ - INFO - Пробуем эмулировать браузер...
+2026-03-23 23:07:04,153 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.wildberries.ru:443
+2026-03-23 23:07:04,424 - urllib3.connectionpool - DEBUG - https://www.wildberries.ru:443 "GET /catalog/218675291/detail.aspx HTTP/1.1" 498 None
+2026-03-23 23:07:04,425 - __main__ - INFO - HTML статус: 498
+2026-03-23 23:07:04,425 - __main__ - INFO - Рендеринг JavaScript...
+2026-03-23 23:07:04,426 - __main__ - ERROR - Рендеринг не удался: Cannot use HTMLSession within an existing event loop. Use AsyncHTMLSession instead.
+2026-03-23 23:07:04,426 - __main__ - INFO - HTML без рендеринга, длина: 1417
+2026-03-23 23:07:04,426 - __main__ - INFO - HTML сохранён в /tmp/wb_debug.html
+2026-03-23 23:07:04,427 - __main__ - INFO - Найдено цен в HTML: 0
+2026-03-23 23:07:04,427 - __main__ - INFO - Уникальных цен в диапазоне: 0
+2026-03-23 23:07:04,427 - __main__ - WARNING - Цена не найдена ни одним способом
+
+🔍 Тестирование URL: https://www.wildberries.ru/catalog/218675291/detail.aspx
+❌ Не удалось получить цену
