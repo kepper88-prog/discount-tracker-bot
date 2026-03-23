@@ -144,7 +144,7 @@ python -m bot.main
 📊 Мониторинг
 
 После запуска доступны:
-Сервис	               URL	                       Логин/Пароль
+Сервис	               URL	                           Логин/Пароль
 FastAPI	               http://localhost:8000	            -
 Swagger Docs	       http://localhost:8000/docs           -
 Prometheus	           http://localhost:9090	            -
