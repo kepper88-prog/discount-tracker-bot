@@ -1,57 +1,110 @@
+<div align="center">
+
 # 🛍️ Discount Tracker Bot
 
-[![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)](https://fastapi.tiangolo.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue.svg)](https://postgresql.org)
-[![Redis](https://img.shields.io/badge/Redis-7-red.svg)](https://redis.io)
-[![Celery](https://img.shields.io/badge/Celery-5.3-green.svg)](https://docs.celeryq.dev)
-[![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://docker.com)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.12-blue.svg?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue.svg?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org)
+[![Redis](https://img.shields.io/badge/Redis-7-red.svg?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io)
+[![Celery](https://img.shields.io/badge/Celery-5.3-green.svg?style=for-the-badge&logo=celery&logoColor=white)](https://docs.celeryq.dev)
+[![Docker](https://img.shields.io/badge/Docker-ready-blue.svg?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 
-Telegram-бот для отслеживания скидок с REST API и фоновыми задачами. Автоматически проверяет цены и уведомляет пользователя при достижении целевой цены.
+</div>
 
-## ✨ Возможности
+---
 
-- ✅ **Telegram Bot** — удобный интерфейс для пользователей
-- ✅ **REST API** — управление через Swagger документацию
-- ✅ **Автоматическая проверка цен** — каждый час
-- ✅ **Уведомления** — при достижении целевой цены
-- ✅ **Поддержка магазинов** — Wildberries, Ozon, Яндекс.Маркет, Citilink, М.Видео, DNS
-- ✅ **История цен** — отслеживание изменений
-- ✅ **Inline-клавиатуры** — удобное управление
-- ✅ **Мониторинг** — Prometheus метрики + Grafana
+## 📖 О проекте
+
+**Discount Tracker Bot** — это полноценная система для автоматического отслеживания скидок на маркетплейсах. Пользователи добавляют ссылки на товары в Telegram-бота, устанавливают желаемую цену, а бот проверяет цены каждый час и присылает уведомление при достижении целевой цены.
+
+### 🎯 Ключевые особенности
+
+| Особенность | Описание |
+|-------------|----------|
+| 🤖 **Telegram Bot** | Удобный интерфейс с inline-клавиатурами и поддержкой FSM |
+| 🚀 **REST API** | Полноценное API с автодокументацией Swagger |
+| ⏰ **Фоновые задачи** | Автоматическая проверка цен через Celery каждые 30 минут |
+| 💾 **Надёжное хранение** | PostgreSQL + асинхронный SQLAlchemy |
+| 🚦 **Мониторинг** | Prometheus метрики + Grafana дашборды |
+| 🐳 **Контейнеризация** | Готовые Dockerfile и docker-compose |
+
+---
 
 ## 🏗️ Архитектура
-┌─────────────┐ ┌──────────────┐ ┌─────────────┐
-│ Telegram │────▶│ FastAPI │────▶│ PostgreSQL │
-│ Users │ │ API │ │ Database │
-└─────────────┘ └──────────────┘ └─────────────┘
-│ │
-▼ ▼
-┌──────────────┐ ┌─────────────┐
-│ Redis │ │ Celery │
-│ Cache/Queue│ │ Worker │
-└──────────────┘ └─────────────┘
 
-## 🛠️ Технологический стек
+```mermaid
+graph TB
+    subgraph "Пользователи"
+        A[Telegram Users]
+        B[Web Clients]
+    end
+    
+    subgraph "Сервисы"
+        C[Telegram Bot<br/>aiogram 3.x]
+        D[FastAPI<br/>REST API]
+        E[Celery Worker<br/>Фоновые задачи]
+    end
+    
+    subgraph "Хранилища"
+        F[(PostgreSQL)]
+        G[(Redis)]
+    end
+    
+    subgraph "Мониторинг"
+        H[Prometheus]
+        I[Grafana]
+    end
+    
+    A --> C
+    B --> D
+    C --> F
+    D --> F
+    D --> G
+    E --> G
+    E --> F
+    D --> H
+    H --> I
+    
+    Технологический стек
+Категория	Технологии
+Язык	Python 3.12
+Telegram Bot	aiogram 3.x
+REST API	FastAPI + Swagger
+База данных	PostgreSQL + asyncpg
+ORM	SQLAlchemy 2.0 (асинхронный)
+Кэширование	Redis
+Очереди задач	Celery + Redis
+Парсинг	BeautifulSoup4, requests, re
+Мониторинг	Prometheus + Grafana
+Контейнеризация	Docker, Docker Compose
+📱 Функционал
+Telegram Bot
+Команда	Описание	Пример
+/start	Запуск бота и регистрация	/start
+/add <URL> [цена]	Добавить товар для отслеживания	/add https://... 5000
+/list	Показать список отслеживаемых товаров	/list
+/remove <ID>	Удалить товар по ID	/remove 123
+/check <ID>	Принудительная проверка цены	/check 123
+/stats	Статистика бота	/stats
+/help	Справка	/help
+REST API
 
-| Компонент | Технология | Назначение |
-|-----------|------------|------------|
-| **Язык** | Python 3.12 | Основной язык разработки |
-| **Telegram Bot** | aiogram 3.x | Асинхронный фреймворк для ботов |
-| **REST API** | FastAPI + Swagger | Документированное API |
-| **База данных** | PostgreSQL + asyncpg | Основное хранилище |
-| **ORM** | SQLAlchemy 2.0 | Асинхронная работа с БД |
-| **Кэширование** | Redis | Кэш и брокер сообщений |
-| **Фоновые задачи** | Celery + Redis | Периодическая проверка цен |
-| **Мониторинг** | Prometheus + Grafana | Сбор и визуализация метрик |
-| **Контейнеризация** | Docker + docker-compose | Упаковка и деплой |
+После запуска API доступно по адресу: http://localhost:8000
+Эндпоинт	Метод	Описание
+/api/users	GET	Список пользователей
+/api/users/{id}/products	GET	Товары пользователя
+/api/products	GET/POST	Управление товарами
+/api/products/{id}	GET/PUT/DELETE	Работа с товаром
+/api/products/{id}/check	POST	Проверить цену
+/health	GET	Статус сервиса
+/metrics	GET	Prometheus метрики
 
-## 📦 Установка и запуск
+📚 Интерактивная документация: http://localhost:8000/docs
+🚀 Быстрый старт
+Локальный запуск
+bash
 
-### Локальный запуск
-
-```bash
 # 1. Клонирование репозитория
 git clone https://github.com/kepper88-prog/discount-tracker-bot.git
 cd discount-tracker-bot
@@ -59,18 +112,19 @@ cd discount-tracker-bot
 # 2. Создание виртуального окружения
 python3.12 -m venv venv
 source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate   # Windows
 
 # 3. Установка зависимостей
 pip install -r requirements.txt
 
 # 4. Настройка переменных окружения
 cp .env.example .env
-# Отредактируйте .env, добавьте BOT_TOKEN
+# Отредактируйте .env, добавьте BOT_TOKEN от @BotFather
 
 # 5. Запуск PostgreSQL и Redis
 docker-compose up -d postgres redis
 
-# 6. Запуск приложения
+# 6. Запуск приложения (в разных терминалах)
 # Терминал 1: FastAPI
 uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 
@@ -79,6 +133,9 @@ celery -A tasks.celery_app worker --loglevel=info
 
 # Терминал 3: Telegram bot
 python -m bot.main
+
+Запуск через Docker
+bash
 
 # Сборка и запуск всех сервисов
 docker-compose up --build -d
@@ -89,77 +146,77 @@ docker-compose logs -f
 # Остановка
 docker-compose down
 
-📱 Использование
-Telegram Bot
-Команда	Описание	Пример
-/start	Начать работу	/start
-/add <URL> [цена]	Добавить товар	/add https://... 5000
-/list	Список товаров	/list
-/remove <ID>	Удалить товар	/remove 123
-/check <ID>	Проверить цену сейчас	/check 123
-/stats	Статистика	/stats
-REST API
-
-После запуска API доступно по адресу: http://localhost:8000
-
-    📚 Документация: http://localhost:8000/docs
-
-    📊 Метрики: http://localhost:8000/metrics
-
-    💓 Health check: http://localhost:8000/health
-
 📊 Мониторинг
+
+После запуска доступны:
 Сервис	URL	Логин/Пароль
+FastAPI	http://localhost:8000	-
+Swagger Docs	http://localhost:8000/docs	-
 Prometheus	http://localhost:9090	-
-Grafana	        http://localhost:3000	admin/admin
+Grafana	http://localhost:3000	admin/admin
+Метрики
+
+    Количество запросов к API
+
+    Время ответа
+
+    Активные пользователи
+
+    Количество проверок цен
+
+    Ошибки и исключения
+
+    Использование Redis и PostgreSQL
+
 🔧 Парсер цен
+Поддерживаемые магазины
+Магазин	Статус	Метод парсинга
+Wildberries	⚠️	API / требуется прокси
+Ozon	⚠️	JSON-LD / требуется прокси
+Яндекс.Маркет	✅	JSON-LD
+Citilink	✅	HTML + JSON
+М.Видео	✅	JSON
+DNS	✅	HTML + JSON
+Любой другой	✅	Универсальный парсер
 
-⚠️ Важно: Современные маркетплейсы (Ozon, Wildberries, Яндекс.Маркет) активно защищаются от автоматических запросов.
-В текущей версии парсер корректно обрабатывает отказ и не нарушает работу основного функционала.
+    ⚠️ Важно: Wildberries и Ozon активно защищаются от автоматических запросов. Для production рекомендуется:
 
-Для production-использования рекомендуется:
+        Использовать прокси (настройка в .env: PROXY=http://user:pass@ip:port)
 
-    Использовать прокси (настройка в .env: PROXY=http://user:pass@ip:port)
+        Подключить сервисы обхода блокировок (ScrapingBee, ScrapingAnt)
 
-    Подключить сервисы обхода блокировок (ScrapingBee, ScrapingAnt)
-
-    Использовать официальные API магазинов (где доступны)
-
-Поддерживаемые магазины:
-
-    ✅ Wildberries — API (требуется обход)
-
-    ✅ Ozon — JSON-LD (требуется обход)
-
-    ✅ Citilink, М.Видео, DNS — базовый парсинг
-
-    ✅ Универсальный парсер — для любых других сайтов
+        Использовать официальные API магазинов
 
 📁 Структура проекта
+text
+
 discount-tracker/
-├── bot/
+├── bot/                        # Telegram бот
 │   ├── __init__.py
-│   ├── main.py              # Telegram бот
-│   └── notifications.py     # Уведомления
-├── api/
+│   ├── main.py                 # Основная логика бота
+│   └── notifications.py        # Уведомления
+├── api/                        # REST API
 │   ├── __init__.py
-│   ├── main.py              # FastAPI приложение
-│   └── routes/              # API эндпоинты
-├── shared/
+│   ├── main.py                 # FastAPI приложение
+│   └── routes/                 # API эндпоинты
+│       ├── users.py
+│       └── products.py
+├── shared/                     # Общие модули
 │   ├── __init__.py
-│   ├── models.py            # SQLAlchemy модели
-│   ├── database.py          # Подключение к БД
-│   └── price_parser.py      # Парсер цен
-├── tasks/
+│   ├── models.py               # SQLAlchemy модели
+│   ├── database.py             # Подключение к БД
+│   ├── config.py               # Настройки
+│   └── price_parser.py         # Парсер цен
+├── tasks/                      # Фоновые задачи
 │   ├── __init__.py
-│   ├── celery_app.py        # Celery конфигурация
-│   └── price_checker.py     # Фоновые задачи
-├── docker-compose.yml
-├── Dockerfile.bot
-├── Dockerfile.api
-├── .env.example
-├── requirements.txt
-└── README.md
+│   ├── celery_app.py           # Celery конфигурация
+│   └── price_checker.py        # Проверка цен
+├── docker-compose.yml          # Docker Compose
+├── Dockerfile.bot              # Dockerfile для бота
+├── Dockerfile.api              # Dockerfile для API
+├── .env.example                # Пример переменных окружения
+├── requirements.txt            # Зависимости
+└── README.md                   # Документация
 
 📈 Roadmap
 
@@ -167,13 +224,15 @@ discount-tracker/
 
     REST API с документацией
 
-    PostgreSQL с SQLAlchemy
+    PostgreSQL с асинхронным SQLAlchemy
 
     Redis + Celery для фоновых задач
 
     Docker-контейнеризация
 
     Prometheus метрики
+
+    Поддержка 6+ маркетплейсов
 
     📊 Графики цен в боте
 
@@ -182,7 +241,29 @@ discount-tracker/
     🌐 Веб-интерфейс на React
 
     🔐 Аутентификация через Telegram
-    
-    Telegram: @discount_pro_2026_bot
 
-    GitHub: @kepper88-prog
+    📱 Мобильное приложение (Flutter)
+
+🤝 Как внести вклад
+
+Буду рад любым предложениям и улучшениям!
+
+    Форкните репозиторий
+
+    Создайте ветку для фичи: git checkout -b feature/amazing-feature
+
+    Закоммитьте изменения: git commit -m 'Add amazing feature'
+
+    Запушьте ветку: git push origin feature/amazing-feature
+
+    Откройте Pull Request
+
+📄 Лицензия
+
+Проект распространяется под лицензией MIT. Подробнее в файле LICENSE.
+📬 Контакты
+	
+Telegram Bot	@discount_pro_2026_bot
+GitHub	@kepper88-prog
+Email	your-email@example.com
+<div align="center">
