@@ -169,12 +169,12 @@ Grafana	               http://localhost:3000	       admin/admin
 Поддерживаемые магазины
 
 Магазин	           Статус	     Метод парсинга
-Wildberries	       ⚠️	             API / требуется прокси
+Wildberries	        ⚠️	             API / требуется прокси
 Ozon	            ⚠️	             JSON-LD / требуется прокси
 Яндекс.Маркет	    ✅	             JSON-LD
-Citilink	       ✅	             HTML + JSON
+Citilink	        ✅	             HTML + JSON
 М.Видео	            ✅	             JSON
-DNS	               ✅	             HTML + JSON
+DNS	                ✅	             HTML + JSON
 Любой другой	    ✅	             Универсальный парсер
 
     ⚠️ Важно: Wildberries и Ozon активно защищаются от автоматических запросов. Для production рекомендуется:
