@@ -22,3 +22,21 @@ bot.log
 *.swp
 *~
 *.bak
+
+# Временные и резервные файлы
+*.backup
+*.bak
+*~
+*.log
+*.db~
+*.db.backup
+
+# Кэш Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Логи
+*.log
+wb_test.log
