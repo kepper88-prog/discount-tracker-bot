@@ -1,0 +1,17 @@
+# Секреты
+.env
+.env.local
+.env.production
+
+# Виртуальное окружение
+venv/
+venv312/
+
+# Файлы БД
+*.db
+*.sqlite3
+
+# Кэш Python
+__pycache__/
+*.pyc
+bot.log
