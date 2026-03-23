@@ -1,0 +1,150 @@
+version: '3.8'
+
+services:
+  # PostgreSQL база данных
+  postgres:
+    image: postgres:15-alpine
+    container_name: discount-postgres
+    environment:
+      POSTGRES_DB: discounts
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - discount-network
+    restart: unless-stopped
+
+  # Redis для кэширования и очередей
+  redis:
+    image: redis:7-alpine
+    container_name: discount-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - discount-network
+    restart: unless-stopped
+
+  # FastAPI приложение
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: discount-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres/discounts
+      REDIS_URL: redis://redis:6379/0
+      API_DEBUG: "False"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+    networks:
+      - discount-network
+    restart: unless-stopped
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+
+  # Telegram бот
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: discount-bot
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres/discounts
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./:/app
+    networks:
+      - discount-network
+    restart: unless-stopped
+    command: python -m bot.main
+
+  # Celery worker для фоновых задач
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    container_name: discount-celery-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres/discounts
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./:/app
+    networks:
+      - discount-network
+    restart: unless-stopped
+    command: celery -A tasks.celery_app worker --loglevel=info
+
+  # Celery beat для периодических задач
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    container_name: discount-celery-beat
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres/discounts
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./:/app
+    networks:
+      - discount-network
+    restart: unless-stopped
+    command: celery -A tasks.celery_app beat --loglevel=info
+
+  # Nginx для reverse proxy (опционально)
+  nginx:
+    image: nginx:alpine
+    container_name: discount-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+    networks:
+      - discount-network
+    restart: unless-stopped
+
+networks:
+  discount-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
