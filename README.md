@@ -34,65 +34,75 @@
 ---
 
 ## 🏗️ Архитектура
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ Telegram │────▶│ FastAPI │────▶│ PostgreSQL │
+│ Users │ │ API │ │ Database │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
+│ │ │
+│ ▼ ▼
+│ ┌─────────────────┐ ┌─────────────────┐
+└──────────────▶│ Redis │ │ Celery │
+│ Cache/Queue │ │ Worker │
+└─────────────────┘ └─────────────────┘
+│ │
+▼ ▼
+┌─────────────────────────────────────────┐
+│ Prometheus + Grafana │
+│ Мониторинг │
+└─────────────────────────────────────────┘
 
-```mermaid
-graph TB
-    subgraph "Пользователи"
-        A[📱 Telegram Users]
-        B[🌐 Web Clients]
-    end
-    
-    subgraph "Сервисы"
-        C[🤖 Telegram Bot<br/>aiogram 3.x]
-        D[⚡ FastAPI<br/>REST API]
-        E[🔄 Celery Worker<br/>Фоновые задачи]
-    end
-    
-    subgraph "Хранилища"
-        F[(🐘 PostgreSQL)]
-        G[(⚡ Redis)]
-    end
-    
-    subgraph "Мониторинг"
-        H[📊 Prometheus]
-        I[📈 Grafana]
-    end
-    
-    A --> C
-    B --> D
-    C --> F
-    D --> F
-    D --> G
-    E --> G
-    E --> F
-    D --> H
-    H --> I
+### Технологический стек
 
-📱 Функционал
-🤖 Telegram Bot
-Команда	Описание
-/start	🚀 Запуск бота и регистрация
-/add <URL> [цена]	➕ Добавить товар для отслеживания
-/list	📋 Список отслеживаемых товаров
-/remove <ID>	❌ Удалить товар по ID
-/check <ID>	🔄 Принудительная проверка цены
-/stats	📊 Статистика бота
-/help	❓ Справка
-🚀 REST API
-Эндпоинт	Метод	Описание
-/api/users	GET	📋 Список пользователей
-/api/users/{id}/products	GET	📦 Товары пользователя
-/api/products	GET/POST	➕ Управление товарами
-/api/products/{id}	GET/PUT/DELETE	🔧 Работа с товаром
-/api/products/{id}/check	POST	🔄 Проверить цену
-/health	GET	💓 Статус сервиса
-/metrics	GET	📊 Prometheus метрики
+| Категория | Технологии |
+|-----------|------------|
+| **Язык** | Python 3.12 |
+| **Telegram Bot** | aiogram 3.x |
+| **REST API** | FastAPI + Swagger |
+| **База данных** | PostgreSQL + asyncpg |
+| **ORM** | SQLAlchemy 2.0 (асинхронный) |
+| **Кэширование** | Redis |
+| **Очереди задач** | Celery + Redis |
+| **Парсинг** | BeautifulSoup4, requests, re |
+| **Мониторинг** | Prometheus + Grafana |
+| **Контейнеризация** | Docker, Docker Compose |
 
-📚 Интерактивная документация: http://localhost:8000/docs
-🚀 Быстрый старт
-📦 Локальный запуск
-bash
+---
 
+## 📱 Функционал
+
+### 🤖 Telegram Bot
+
+| Команда | Описание |
+|---------|----------|
+| `/start` | 🚀 Запуск бота и регистрация |
+| `/add <URL> [цена]` | ➕ Добавить товар для отслеживания |
+| `/list` | 📋 Список отслеживаемых товаров |
+| `/remove <ID>` | ❌ Удалить товар по ID |
+| `/check <ID>` | 🔄 Принудительная проверка цены |
+| `/stats` | 📊 Статистика бота |
+| `/help` | ❓ Справка |
+
+### 🚀 REST API
+
+| Эндпоинт | Метод | Описание |
+|----------|-------|----------|
+| `/api/users` | GET | 📋 Список пользователей |
+| `/api/users/{id}/products` | GET | 📦 Товары пользователя |
+| `/api/products` | GET/POST | ➕ Управление товарами |
+| `/api/products/{id}` | GET/PUT/DELETE | 🔧 Работа с товаром |
+| `/api/products/{id}/check` | POST | 🔄 Проверить цену |
+| `/health` | GET | 💓 Статус сервиса |
+| `/metrics` | GET | 📊 Prometheus метрики |
+
+📚 **Интерактивная документация**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+## 🚀 Быстрый старт
+
+### 📦 Локальный запуск
+
+```bash
 # 1. Клонирование репозитория
 git clone https://github.com/kepper88-prog/discount-tracker-bot.git
 cd discount-tracker-bot
@@ -112,6 +122,14 @@ cp .env.example .env
 # 5. Запуск PostgreSQL и Redis
 docker-compose up -d postgres redis
 
+# Сборка и запуск всех сервисов
+docker-compose up --build -d
+
+# Просмотр логов
+docker-compose logs -f
+
+# Остановка
+docker-compose down
 # 6. Запуск приложения (в разных терминалах)
 
 # Терминал 1: FastAPI
@@ -122,18 +140,6 @@ celery -A tasks.celery_app worker --loglevel=info
 
 # Терминал 3: Telegram bot
 python -m bot.main
-
-🐳 Запуск через Docker
-bash
-
-# Сборка и запуск всех сервисов
-docker-compose up --build -d
-
-# Просмотр логов
-docker-compose logs -f
-
-# Остановка
-docker-compose down
 
 📊 Мониторинг
 
@@ -175,10 +181,8 @@ DNS	✅	HTML + JSON
         Подключить сервисы обхода блокировок (ScrapingBee, ScrapingAnt)
 
         Использовать официальные API магазинов
-
-📁 Структура проекта
-text
-
+       
+    📁 Структура проекта
 discount-tracker/
 ├── 📁 bot/                        # Telegram бот
 │   ├── 📄 __init__.py
@@ -237,14 +241,3 @@ discount-tracker/
     📱 Мобильное приложение (Flutter)
 
     🧠 AI-прогнозирование цен
-
-
-📬 Контакты
-	
-Telegram Bot	@discount_pro_2026_bot
-GitHub	@kepper88-prog
-
-<div align="center">
-🌟 Если проект оказался полезным, поставьте звездочку на GitHub! 🌟
-
-</div> ```
