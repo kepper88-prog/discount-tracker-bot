@@ -147,7 +147,7 @@ python -m bot.main
 Сервис	               URL	                       Логин/Пароль
 FastAPI	               http://localhost:8000	            -
 Swagger Docs	       http://localhost:8000/docs           -
-Prometheus	       http://localhost:9090	            -
+Prometheus	            http://localhost:9090	            -
 Grafana	               http://localhost:3000	       admin/admin
 
 📈 Метрики
